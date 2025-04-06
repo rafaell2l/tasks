@@ -1,0 +1,607 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestione Attività v8.1 - Gruppi Backlog & Export Aggregato</title> {/* Versione aggiornata per chiarezza */}
+    <style>
+        /* CSS Styles (invariati dalla v8) */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f7f9; color: #333; }
+        h1, h2 { color: #3a5f8a; margin-bottom: 15px; border-bottom: 1px solid #dce4ec; padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
+        .container { max-width: 1100px; margin: 20px auto; }
+
+        .app { width: 100%; display: flex; flex-direction: column; gap: 25px; }
+        .card { background-color: #fff; padding: 20px 25px; border: 1px solid #dce4ec; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.07); overflow-x: auto; /* Allow horizontal scroll */ }
+
+        /* Form Styling */
+        .add-task-section label { display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9em; color: #555; }
+        .add-task-section input[type="text"], .add-task-section select { width: 100%; padding: 10px 12px; margin-bottom: 15px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 0.95em; }
+        .form-row { display: flex; gap: 15px; margin-bottom: 15px; } .form-row > div { flex: 1; } .form-row label, .form-row input, .form-row select { margin-bottom: 0; width: 100%; }
+        .add-task-section button, #toggle-completed-button, .export-section button { padding: 10px 18px; background-color: #4a90e2; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 0.95em; font-weight: 500; transition: background-color 0.2s ease-in-out; margin-right: 10px; margin-bottom: 10px; }
+        .add-task-section button:hover, #toggle-completed-button:hover, .export-section button:hover { background-color: #357abd; }
+        .export-section button { background-color: #607d8b; } .export-section button:hover { background-color: #455a64; }
+        .export-section button.copy-btn { background-color: #7cb342; } .export-section button.copy-btn:hover { background-color: #558b2f; }
+        #toggle-db-button { font-size: 0.7em; padding: 4px 8px; background-color: #90a4ae; font-weight: normal; margin-left: auto; margin-right: 0; color: white; border: none; border-radius: 3px; cursor: pointer;} #toggle-db-button:hover { background-color: #78909c; }
+
+        /* Backlog Task List (con gruppi) */
+        #backlog-list { list-style: none; padding: 0; margin-top: 15px; }
+        .backlog-group-header {
+            background-color: #e9edf1;
+            padding: 8px 15px;
+            margin-top: 15px; /* Spazio sopra l'header del gruppo */
+            margin-bottom: 5px; /* Spazio sotto l'header del gruppo */
+            border-radius: 4px;
+            font-weight: 600;
+            color: #3a5f8a;
+            border-bottom: 1px solid #dce4ec;
+            display: flex; /* Per allineare titolo e durata */
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.95em;
+        }
+        .backlog-group-header:first-child { margin-top: 0; } /* Rimuovi margine sopra il primo */
+        .backlog-group-tasks { /* Stile per l'UL interno ai gruppi */
+             list-style: none;
+             padding-left: 0; /* Rimuovi indentazione default */
+             margin-bottom: 10px; /* Spazio sotto la lista di task del gruppo */
+        }
+        #backlog-list li.task-item { /* Stile specifico per gli item task */
+             background-color: #fcfcfd;
+             padding: 10px 15px;
+             margin-bottom: 10px;
+             border: 1px solid #e8eef3;
+             border-left: 4px solid #4a90e2; /* Colore verrà sovrascritto da JS */
+             border-radius: 4px;
+             display: flex;
+             justify-content: space-between;
+             align-items: flex-start;
+             transition: box-shadow 0.15s ease-in-out;
+             flex-wrap: wrap;
+        }
+        #backlog-list li.task-item:hover { box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
+        .item-content { flex-grow: 1; margin-right: 15px; display: flex; flex-direction: column; gap: 4px; min-width: 200px; }
+        .item-name { font-weight: 500; color: #334e68; }
+        .item-details { font-size: 0.8em; color: #627d98; display: flex; flex-wrap: wrap; gap: 5px 10px; }
+        .item-details span { background-color: #e0e8f0; padding: 2px 6px; border-radius: 10px; white-space: nowrap; }
+        .item-details .detail-category { background-color: #d4e6f1; color: #2e618d; }
+        .item-details .detail-priority-Bassa { background-color: #d5f5e3; color: #186a3b; } .item-details .detail-priority-Normale { background-color: #fdebd0; color: #b9770e; } .item-details .detail-priority-Alta { background-color: #fadbd8; color: #943126; }
+        .item-details .detail-source { background-color: #e8eaf6; color: #3f51b5; } .item-details .detail-date { background-color: #f5f5f5; color: #757575; }
+        .item-details .detail-duration-est { background-color: #fff9c4; color: #f57f17; } .item-details .detail-duration-act { background-color: #dcedc8; color: #33691e; }
+        .item-details .timer-display { background-color: #ffe0b2; color: #e65100; font-weight: 500; }
+        .item-actions { display: flex; gap: 6px; flex-shrink: 0; align-items: center; margin-left: auto; padding-top: 2px; }
+        .item-actions button { padding: 4px 8px; cursor: pointer; border-radius: 4px; border: 1px solid transparent; font-size: 0.9em; line-height: 1; transition: background-color 0.2s, border-color 0.2s; }
+        .complete-btn { background-color: #e8f5e9; color: #388e3c; border: 1px solid #c8e6c9; } .complete-btn:hover { background-color: #c8e6c9; }
+        .delete-btn { background-color: #ffebee; color: #c62828; border: 1px solid #ffcdd2; } .delete-btn:hover { background-color: #ffcdd2; }
+        .add-from-template-button { background-color: #e3f2fd; color: #1e88e5; border: 1px solid #bbdefb; padding: 2px 5px; font-size: 0.85em; } .add-from-template-button:hover { background-color: #bbdefb; }
+        .edit-duration-btn { background-color: #e0e0e0; color: #424242; border: 1px solid #bdbdbd; } .edit-duration-btn:hover { background-color: #bdbdbd; }
+        .save-duration-btn { background-color: #c8e6c9; color: #388e3c; border: 1px solid #a5d6a7; margin-left: 5px; } .save-duration-btn:hover { background-color: #a5d6a7; }
+        .actual-duration-area { display: none; width: 100%; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #eee; display: flex; align-items: center; gap: 8px; } .actual-duration-area.visible { display: flex; } .actual-duration-area label { font-size: 0.8em; color: #555; margin-bottom: 0; } .actual-duration-input { flex-grow: 1; padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9em; }
+        .backlog-empty-message { padding: 15px; text-align: center; font-style: italic; color: #888; }
+
+        /* Completed/Template Table Styling */
+        #completed-tasks-container { margin-top: 15px; border-top: 1px solid #e8eef3; padding-top: 15px; }
+        .task-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 0.9em; color: #333; }
+        .task-table thead th { background-color: #e9edf1; border: 1px solid #dce4ec; padding: 8px 10px; text-align: left; font-weight: 600; color: #4a6a8a; }
+        .task-table tbody td { border: 1px solid #e8eef3; padding: 6px 10px; vertical-align: top; }
+        .task-table tbody tr:nth-child(even) { background-color: #f8fafd; }
+        .task-table .action-cell { text-align: center; width: 50px; }
+        .task-table .delete-btn, .task-table .add-from-template-button { padding: 2px 5px; font-size: 0.85em; }
+        .task-table .placeholder-row td { text-align: center; font-style: italic; color: #888; padding: 15px; }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Main App Column -->
+        <main class="app">
+            <!-- Aggiunta Nuova Attività -->
+            <section class="add-task-section card"><h2>Nuova Attività Manuale</h2><div><label for="new-task-input">Nome attività:</label><input type="text" id="new-task-input" placeholder="Es: Comprare il latte"></div><div class="form-row"><div><label for="new-task-category">Categoria:</label><select id="new-task-category"><option value="Generale">Generale</option><option value="T1">T1</option><option value="T2">T2</option><option value="T3">T3</option><option value="Lavoro">Lavoro</option><option value="Altro">Altro</option><option value="Svago">Svago</option><option value="Viaggi">Viaggi</option><option value="Casa">Casa</option><option value="Personale">Personale</option></select></div><div><label for="new-task-priority">Priorità:</label><select id="new-task-priority"><option value="Normale">Normale</option><option value="Bassa">Bassa</option><option value="Alta">Alta</option></select></div></div><div><label for="new-task-duration">Durata Stimata:</label><input type="text" id="new-task-duration" placeholder="Es: 1h 30m, 45m, 2h"></div><button id="add-task-button">Aggiungi al Backlog</button></section>
+
+            <!-- Template (DB Attività) -->
+            <section class="templates-section card" id="templates-section">
+                <h2><span>Aggiungi da Template (DB Attività)</span><button id="toggle-db-button" title="Nascondi DB Attività">Nascondi DB</button></h2>
+                <table class="task-table" id="template-table">
+                    <thead>
+                        <tr>
+                            <th>Nome</th>
+                            <th>Categoria</th>
+                            <th>Priorità</th>
+                            <th>Stimata</th>
+                            <th>Aggiungi</th>
+                        </tr>
+                    </thead>
+                    <tbody id="template-list-body">
+                        <!-- Template rows will be added here -->
+                        <tr class="placeholder-row"><td colspan="5">Caricamento template...</td></tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <!-- Backlog (con gruppi) -->
+            <section class="backlog-section card">
+                <h2>Backlog Attività (Gruppi: Categoria / Ord: Priorità, Data ↓)</h2>
+                <ul id="backlog-list">
+                    <li class="backlog-empty-message">Nessuna attività nel backlog.</li>
+                </ul>
+            </section>
+
+            <!-- Concluse -->
+            <section class="completed-section card"><button id="toggle-completed-button">Mostra Concluse (0)</button><div id="completed-tasks-container" style="display: none;"><h2>Attività Concluse</h2><table class="task-table" id="completed-tasks-table"><thead><tr><th>Nome</th><th>Cat.</th><th>Pri.</th><th>Stimata</th><th>Effettiva</th><th>Tempo Trascorso</th><th>Aggiunta</th><th>Completata</th><th>Azioni</th></tr></thead><tbody id="completed-list-body"><tr class="placeholder-row"><td colspan="9">Nessuna attività completata.</td></tr></tbody></table></div></section>
+
+            <!-- Export / Copy -->
+            <section class="export-section card"><h2>Esporta / Copia Dati</h2><button id="export-summary-button" title="Scarica riepilogo .txt">Esporta Riepilogo (.txt)</button><button id="export-csv-button" title="Scarica .csv">Esporta CSV (.csv)</button><button id="copy-summary-button" class="copy-btn" title="Copia riepilogo">Copia Riepilogo</button><button id="copy-csv-button" class="copy-btn" title="Copia CSV">Copia CSV</button></section>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Riferimenti DOM ---
+            const newTaskInput = document.getElementById('new-task-input');
+            const newTaskCategory = document.getElementById('new-task-category');
+            const newTaskPriority = document.getElementById('new-task-priority');
+            const newTaskDuration = document.getElementById('new-task-duration');
+            const addTaskButton = document.getElementById('add-task-button');
+            const backlogList = document.getElementById('backlog-list');
+            const completedListBody = document.getElementById('completed-list-body');
+            const toggleCompletedButton = document.getElementById('toggle-completed-button');
+            const completedTasksContainer = document.getElementById('completed-tasks-container');
+            const templateTable = document.getElementById('template-table');
+            const templateListBody = document.getElementById('template-list-body');
+            const toggleDbButton = document.getElementById('toggle-db-button');
+            const exportSummaryButton = document.getElementById('export-summary-button');
+            const exportCsvButton = document.getElementById('export-csv-button');
+            const copySummaryButton = document.getElementById('copy-summary-button');
+            const copyCsvButton = document.getElementById('copy-csv-button');
+
+            // --- Stato Applicazione ---
+            const STORAGE_KEY_BACKLOG = 'backlogTasks_v8'; // Mantieni v8 se la struttura dati di base non è cambiata
+            const STORAGE_KEY_COMPLETED = 'completedTasks_v8';
+            let backlogTasks = JSON.parse(localStorage.getItem(STORAGE_KEY_BACKLOG)) || [];
+            let completedTasks = JSON.parse(localStorage.getItem(STORAGE_KEY_COMPLETED)) || [];
+            let isDbTableVisible = templateTable.style.display !== 'none';
+            let timerInterval = null;
+
+            // --- TEMPLATES & Config ---
+            const activityTemplates = [
+                { id: 'tpl-001', name: 'Pulizia Cucina', category: 'Casa', priority: 'Normale', estimatedDuration: '1h' },
+                { id: 'tpl-002', name: 'Fare la Spesa', category: 'Casa', priority: 'Normale', estimatedDuration: '1h 30m' },
+                { id: 'tpl-003', name: 'Report Settimanale', category: 'Lavoro', priority: 'Alta', estimatedDuration: '3h' },
+                { id: 'tpl-004', name: 'Chiamare Cliente X', category: 'Lavoro', priority: 'Alta', estimatedDuration: '15m' },
+                { id: 'tpl-005', name: 'Palestra', category: 'Personale', priority: 'Bassa', estimatedDuration: '1h' },
+                { id: 'tpl-006', name: 'Leggere Libro', category: 'Svago', priority: 'Bassa', estimatedDuration: '30m' },
+                { id: 'tpl-007', name: 'Pagare Bollette', category: 'Altro', priority: 'Alta', estimatedDuration: '10m' },
+                { id: 'tpl-008', name: 'Pianificare Viaggio', category: 'Viaggi', priority: 'Normale', estimatedDuration: '2h' },
+                { id: 'tpl-009', name: 'Fare Barba', category: 'Personale', priority: 'Bassa', estimatedDuration: '15m' }
+            ];
+            const priorityOrder = { 'Alta': 1, 'Normale': 2, 'Bassa': 3 };
+            const DEFAULT_CATEGORY = 'Generale';
+
+            // --- Funzioni Utility Durata ---
+            const parseDurationToMinutes = (durationString) => {
+                if (!durationString || typeof durationString !== 'string') { return 0; }
+                const cleanedString = durationString.trim().toLowerCase();
+                if (!cleanedString) { return 0; }
+                let totalMinutes = 0;
+                const durationRegex = /(?:(\d+)\s*h)?\s*(?:(\d+)\s*m)?/;
+                const match = cleanedString.match(durationRegex);
+                if (match) {
+                    const hours = parseInt(match[1], 10) || 0;
+                    const minutes = parseInt(match[2], 10) || 0;
+                    if (hours === 0 && minutes === 0) {
+                        const singleHourMatch = cleanedString.match(/^(\d+)\s*h$/);
+                        const singleMinuteMatch = cleanedString.match(/^(\d+)\s*m$/);
+                        if (singleHourMatch) { totalMinutes += parseInt(singleHourMatch[1], 10) * 60; }
+                        else if (singleMinuteMatch) { totalMinutes += parseInt(singleMinuteMatch[1], 10); }
+                    } else { totalMinutes = (hours * 60) + minutes; }
+                }
+                return totalMinutes > 0 ? totalMinutes : 0;
+            };
+            const isValidDurationFormat = (durationString) => {
+                if (!durationString || typeof durationString !== 'string' || durationString.trim() === '') { return true; }
+                const cleanedString = durationString.trim().toLowerCase();
+                const validationRegex = /^\s*(?:(\d+)\s*h)?\s*(?:(\d+)\s*m)?\s*$/;
+                const match = cleanedString.match(validationRegex);
+                return match !== null && (match[1] !== undefined || match[2] !== undefined);
+            };
+            const formatMinutesToDuration = (totalMinutes) => {
+                if (totalMinutes === null || totalMinutes === undefined || totalMinutes <= 0) { return "N/A"; }
+                const hours = Math.floor(totalMinutes / 60);
+                const minutes = totalMinutes % 60;
+                let formatted = '';
+                if (hours > 0) { formatted += `${hours}h`; }
+                if (minutes > 0) { if (formatted.length > 0) formatted += ' '; formatted += `${minutes}m`; }
+                return formatted || "0m";
+            };
+
+            // --- Funzioni Core (save, dates, etc.) ---
+            const saveTasks = () => {
+                localStorage.setItem(STORAGE_KEY_BACKLOG, JSON.stringify(backlogTasks));
+                localStorage.setItem(STORAGE_KEY_COMPLETED, JSON.stringify(completedTasks));
+            };
+            const formatDate = (ds, useISO = false) => { if (!ds) return ''; try { const d = new Date(ds); if (useISO) return d.toISOString(); return d.toLocaleString('it-IT', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) } catch (e) { return 'Data invalida' } };
+            const calculateElapsedTime = (addedDateISOString) => { if (!addedDateISOString) return 'N/A'; try { const aD = new Date(addedDateISOString); const n = new Date(); const dM = n - aD; if (dM < 0) return '0:00'; const addD = aD.getDate(); const addM = aD.getMonth(); const addY = aD.getFullYear(); const curD = n.getDate(); const curM = n.getMonth(); const curY = n.getFullYear(); if (addY === curY && addM === curM && addD === curD) { const tM = Math.floor(dM / (1000 * 60)); const h = Math.floor(tM / 60); const m = tM % 60; const pH = String(h).padStart(2, '0'); const pM = String(m).padStart(2, '0'); return `${pH}:${pM}` } else { const days = Math.floor(dM / (1000 * 60 * 60 * 24)); return `${days} giorn${days === 1 ? 'o' : 'i'}` } } catch (e) { console.error("Error calculating elapsed time:", e); return 'Errore' } };
+
+            // --- Helper to create table cells ---
+            const createCell = (text) => {
+                const td = document.createElement('td');
+                td.textContent = text !== null && text !== undefined ? text : 'N/A';
+                return td;
+            };
+
+            // --- Element Creation Functions ---
+            const createTaskElement = (task, isBacklog = true) => {
+                if (isBacklog) {
+                    const li = document.createElement('li');
+                    li.classList.add('task-item');
+                    li.setAttribute('data-id', task.id);
+                    switch (task.priority) {
+                        case 'Alta': li.style.borderLeftColor = '#e57373'; break;
+                        case 'Bassa': li.style.borderLeftColor = '#a5d6a7'; break;
+                        default: li.style.borderLeftColor = '#90caf9'; break;
+                    }
+                    const contentDiv = document.createElement('div');
+                    contentDiv.classList.add('item-content');
+                    const nameSpan = document.createElement('span');
+                    nameSpan.classList.add('item-name');
+                    nameSpan.textContent = task.name;
+                    contentDiv.appendChild(nameSpan);
+                    const detailsDiv = document.createElement('div');
+                    detailsDiv.classList.add('item-details');
+                    detailsDiv.innerHTML = `
+                        <span class="detail-category">Cat: ${task.category || 'N/A'}</span>
+                        <span class="detail-priority-${task.priority || 'Normale'}">Pri: ${task.priority || 'N/A'}</span>
+                        ${task.estimatedDuration ? `<span class="detail-duration-est" title="Durata Stimata">St: ${task.estimatedDuration}</span>` : ''}
+                        ${task.actualDuration ? `<span class="detail-duration-act" title="Durata Effettiva">Ef: ${task.actualDuration}</span>` : ''}
+                        ${task.source ? `<span class="detail-source">Orig: ${task.source}</span>` : ''}
+                        <span class="detail-date" title="Data Aggiunta">Agg: ${formatDate(task.addedDate)}</span>
+                        <span class="timer-display" data-task-id="${task.id}" data-added-date="${task.addedDate}" title="Tempo trascorso dall'aggiunta">${calculateElapsedTime(task.addedDate)}</span>
+                    `;
+                    contentDiv.appendChild(detailsDiv);
+                    li.appendChild(contentDiv);
+                    const actionsDiv = document.createElement('div');
+                    actionsDiv.classList.add('item-actions');
+                    const editDurationBtn = document.createElement('button');
+                    editDurationBtn.textContent = '⏱️';
+                    editDurationBtn.classList.add('edit-duration-btn');
+                    editDurationBtn.title = "Modifica/Aggiungi Durata Effettiva";
+                    actionsDiv.appendChild(editDurationBtn);
+                    const completeBtn = document.createElement('button');
+                    completeBtn.textContent = '✓';
+                    completeBtn.classList.add('complete-btn');
+                    completeBtn.title = "Marca come completata";
+                    actionsDiv.appendChild(completeBtn);
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.textContent = '✗';
+                    deleteBtn.classList.add('delete-btn');
+                    deleteBtn.title = "Elimina task";
+                    actionsDiv.appendChild(deleteBtn);
+                    li.appendChild(actionsDiv);
+                    const durationArea = document.createElement('div');
+                    durationArea.classList.add('actual-duration-area');
+                    const durationLabel = document.createElement('label');
+                    durationLabel.textContent = "Dur. Effettiva:";
+                    durationLabel.htmlFor = `duration-input-${task.id}`;
+                    const durationInput = document.createElement('input');
+                    durationInput.type = 'text';
+                    durationInput.id = `duration-input-${task.id}`;
+                    durationInput.classList.add('actual-duration-input');
+                    durationInput.placeholder = "Es: 1h 15m, 50m";
+                    durationInput.value = task.actualDuration || '';
+                    const saveDurationBtn = document.createElement('button');
+                    saveDurationBtn.textContent = '💾';
+                    saveDurationBtn.classList.add('save-duration-btn');
+                    saveDurationBtn.title = "Salva Durata Effettiva";
+                    durationArea.appendChild(durationLabel);
+                    durationArea.appendChild(durationInput);
+                    durationArea.appendChild(saveDurationBtn);
+                    li.appendChild(durationArea);
+                    return li;
+                } else {
+                    const tr = document.createElement('tr');
+                    tr.setAttribute('data-id', task.id);
+                    tr.appendChild(createCell(task.name));
+                    tr.appendChild(createCell(task.category));
+                    tr.appendChild(createCell(task.priority));
+                    tr.appendChild(createCell(task.estimatedDuration));
+                    tr.appendChild(createCell(task.actualDuration));
+                    tr.appendChild(createCell(task.elapsedDuration));
+                    tr.appendChild(createCell(formatDate(task.addedDate)));
+                    tr.appendChild(createCell(formatDate(task.completedDate)));
+                    const actionTd = document.createElement('td');
+                    actionTd.classList.add('action-cell');
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.textContent = '✗';
+                    deleteBtn.classList.add('delete-btn');
+                    deleteBtn.title = "Elimina task completata";
+                    actionTd.appendChild(deleteBtn);
+                    tr.appendChild(actionTd);
+                    return tr;
+                }
+            };
+
+            const createTemplateElement = (template) => {
+                const tr = document.createElement('tr');
+                tr.setAttribute('data-template-id', template.id);
+                tr.appendChild(createCell(template.name));
+                tr.appendChild(createCell(template.category));
+                tr.appendChild(createCell(template.priority));
+                tr.appendChild(createCell(template.estimatedDuration));
+                const actionTd = document.createElement('td');
+                actionTd.classList.add('action-cell');
+                const addBtn = document.createElement('button');
+                addBtn.textContent = '+';
+                addBtn.classList.add('add-from-template-button');
+                addBtn.title = `Aggiungi "${template.name}" al backlog`;
+                addBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    addTask(template.name, template.category, template.estimatedDuration, template.priority, 'Template');
+                };
+                actionTd.appendChild(addBtn);
+                tr.appendChild(actionTd);
+                return tr;
+            };
+
+            // --- Render Function (con Gruppi Backlog) ---
+            const renderLists = () => {
+                backlogList.innerHTML = '';
+                completedListBody.innerHTML = '';
+                templateListBody.innerHTML = '';
+                let cE = true, tE = true;
+
+                // 1. Prepara Dati Backlog: Ordina e Raggruppa
+                const sortedBacklog = [...backlogTasks].sort((a, b) => {
+                    const priorityComparison = (priorityOrder[a.priority] || 99) - (priorityOrder[b.priority] || 99);
+                    if (priorityComparison !== 0) return priorityComparison;
+                    return new Date(b.addedDate) - new Date(a.addedDate);
+                });
+
+                const groupedTasks = {};
+                sortedBacklog.forEach(task => {
+                    const category = task.category || DEFAULT_CATEGORY;
+                    if (!groupedTasks[category]) {
+                        groupedTasks[category] = { tasks: [], totalMinutes: 0 };
+                    }
+                    groupedTasks[category].tasks.push(task);
+                    const minutes = parseDurationToMinutes(task.estimatedDuration);
+                    if (minutes > 0) { groupedTasks[category].totalMinutes += minutes; }
+                });
+
+                // 2. Render Backlog per Gruppi
+                const groupKeys = Object.keys(groupedTasks).sort();
+
+                if (groupKeys.length === 0) {
+                    backlogList.innerHTML = '<li class="backlog-empty-message">Nessuna attività nel backlog.</li>';
+                } else {
+                    groupKeys.forEach(category => {
+                        const group = groupedTasks[category];
+                        const groupHeader = document.createElement('li');
+                        groupHeader.classList.add('backlog-group-header');
+                        groupHeader.innerHTML = `
+                            <span>${category}</span>
+                            <span title="Totale Durata Stimata per ${category}">Tot: ${formatMinutesToDuration(group.totalMinutes)}</span>
+                        `;
+                        backlogList.appendChild(groupHeader);
+                        const groupTaskList = document.createElement('ul');
+                        groupTaskList.classList.add('backlog-group-tasks');
+                        group.tasks.forEach(task => {
+                            groupTaskList.appendChild(createTaskElement(task, true));
+                        });
+                        backlogList.appendChild(groupTaskList);
+                    });
+                }
+
+                // 3. Render Completed Table (Sorted)
+                [...completedTasks].sort((a, b) => new Date(b.completedDate) - new Date(a.completedDate)).forEach(t => { completedListBody.appendChild(createTaskElement(t, false)); cE = false; });
+
+                // 4. Render Template Table
+                activityTemplates.forEach(t => { templateListBody.appendChild(createTemplateElement(t)); tE = false; });
+
+                // 5. Placeholders e Update Bottoni
+                if (cE) completedListBody.innerHTML = '<tr class="placeholder-row"><td colspan="9">Nessuna attività completata.</td></tr>';
+                if (tE) templateListBody.innerHTML = '<tr class="placeholder-row"><td colspan="5">Nessun template disponibile.</td></tr>';
+
+                const cC = completedTasks.length;
+                toggleCompletedButton.textContent = completedTasksContainer.style.display === 'none' ? `Mostra Concluse (${cC})` : `Nascondi Concluse (${cC})`;
+
+                startTimerUpdates();
+            };
+
+            // --- Timer Update Functions ---
+            const updateTimers = () => { document.querySelectorAll('#backlog-list .timer-display').forEach(span => { const addedDateStr = span.getAttribute('data-added-date'); if (addedDateStr) { span.textContent = calculateElapsedTime(addedDateStr); } }); };
+            const startTimerUpdates = () => { clearInterval(timerInterval); updateTimers(); timerInterval = setInterval(updateTimers, 60000); };
+
+            // --- Core Task Functions (Add, Complete, Save Duration, Delete - con Validazione Durata) ---
+            const addTask = (name, category, duration, priority, source = 'Manuale') => {
+                const taskName = name.trim();
+                if (!taskName) { alert("Il nome dell'attività non può essere vuoto!"); newTaskInput.focus(); return; }
+                const durationString = duration.trim();
+                if (durationString && !isValidDurationFormat(durationString)) { alert(`Formato durata stimata non valido: "${durationString}".\nUsare formati come "1h 30m", "45m", "2h".`); newTaskDuration.focus(); return; }
+                const newTask = { id: `task-${Date.now()}-${Math.random().toString(16).slice(2)}`, name: taskName, category: category || DEFAULT_CATEGORY, priority: priority, estimatedDuration: durationString || null, actualDuration: null, addedDate: new Date().toISOString(), elapsedDuration: null, isComplete: false, completedDate: null, source: source };
+                backlogTasks.push(newTask);
+                saveTasks();
+                renderLists();
+                if (source === 'Manuale') { newTaskInput.value = ''; newTaskCategory.value = 'Generale'; newTaskPriority.value = 'Normale'; newTaskDuration.value = ''; newTaskInput.focus(); }
+            };
+            const completeTask = (id) => {
+                const taskIndex = backlogTasks.findIndex(t => t.id === id);
+                if (taskIndex > -1) {
+                    const task = backlogTasks[taskIndex];
+                    task.elapsedDuration = calculateElapsedTime(task.addedDate);
+                    backlogTasks.splice(taskIndex, 1);
+                    task.isComplete = true;
+                    task.completedDate = new Date().toISOString();
+                    completedTasks.push(task);
+                    saveTasks();
+                    renderLists();
+                } else { console.warn("Task da completare non trovata nel backlog:", id); }
+            };
+            const saveActualDuration = (id, durationValue) => {
+                const taskIndex = backlogTasks.findIndex(t => t.id === id);
+                if (taskIndex > -1) {
+                    const durationString = durationValue.trim();
+                    if (durationString && !isValidDurationFormat(durationString)) {
+                       alert(`Formato durata effettiva non valido: "${durationString}".\nUsare formati come "1h 30m", "45m", "2h".`);
+                       const inputElement = document.getElementById(`duration-input-${id}`);
+                       if(inputElement) inputElement.focus();
+                       return;
+                    }
+                    backlogTasks[taskIndex].actualDuration = durationString || null;
+                    saveTasks();
+                    renderLists();
+                     const area = document.querySelector(`li[data-id="${id}"] .actual-duration-area`);
+                     if (area) area.classList.remove('visible');
+                } else { console.warn("Task per salvare durata effettiva non trovata:", id); }
+            };
+            const deleteTask = (id, isBacklog) => {
+                if (confirm("Sei sicuro di voler eliminare questa attività? L'azione è irreversibile.")) {
+                    if (isBacklog) { backlogTasks = backlogTasks.filter(t => t.id !== id); }
+                    else { completedTasks = completedTasks.filter(t => t.id !== id); }
+                    saveTasks();
+                    renderLists();
+                }
+            };
+            const toggleCompleted = () => {
+                const isHidden = completedTasksContainer.style.display === 'none';
+                completedTasksContainer.style.display = isHidden ? 'block' : 'none';
+                renderLists();
+            };
+
+            // --- Toggle DB Table Visibility ---
+            const toggleDbSection = () => {
+                isDbTableVisible = !isDbTableVisible;
+                if (isDbTableVisible) { templateTable.style.display = ''; toggleDbButton.textContent = 'Nascondi DB'; toggleDbButton.title = "Nascondi DB Attività"; }
+                else { templateTable.style.display = 'none'; toggleDbButton.textContent = 'Mostra DB'; toggleDbButton.title = "Mostra DB Attività"; }
+            };
+
+            // --- Export/Copy Functions (generateSummaryText modificata) ---
+            const getAllTaskData=()=>{const bS=backlogTasks.map(t=>({...t,status:'Backlog'}));const cS=completedTasks.map(t=>({...t,status:'Completato'}));return[...bS,...cS].sort((a,b)=>{if(a.status==='Backlog'&&b.status==='Completato')return -1;if(a.status==='Completato'&&b.status==='Backlog')return 1;if(a.status==='Backlog'){const pC=(priorityOrder[a.priority]||99)-(priorityOrder[b.priority]||99);if(pC!==0)return pC;return new Date(b.addedDate)-new Date(a.addedDate);}if(a.status==='Completato'){return new Date(b.completedDate)-new Date(a.completedDate);}return 0;});};
+            const downloadFile=(c,f,mT)=>{const b=new Blob([c],{type:mT});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=f;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(u);};
+            const escapeCsvField=(fV)=>{const sV=String(fV===null||fV===undefined?'':fV);if(sV.search(/("|,|\n)/g)>=0){return`"${sV.replace(/"/g,'""')}"`;}return sV;};
+            const copyToClipboard=async(text)=>{if(!navigator.clipboard){alert('Clipboard API non supportata.');return false;}try{await navigator.clipboard.writeText(text);alert('Testo copiato negli appunti!');return true;}catch(err){console.error('Errore copia:',err);alert('Errore copia.');return false;}};
+
+            const generateSummaryText = () => {
+                let s = "RIEPILOGO ATTIVITÀ\n=====================\n\n";
+                const currentBacklogTasks = backlogTasks;
+                const currentCompletedTasks = completedTasks;
+                const backlogCategorySummary = {};
+                const backlogTasksGroupedByCategory = {};
+                const sortedBacklogForSummary = [...currentBacklogTasks].sort((a, b) => {
+                    const catA = a.category || DEFAULT_CATEGORY; const catB = b.category || DEFAULT_CATEGORY;
+                    if (catA < catB) return -1; if (catA > catB) return 1;
+                    const priorityComparison = (priorityOrder[a.priority] || 99) - (priorityOrder[b.priority] || 99);
+                    if (priorityComparison !== 0) return priorityComparison;
+                    return new Date(b.addedDate) - new Date(a.addedDate);
+                });
+                sortedBacklogForSummary.forEach(task => {
+                    const category = task.category || DEFAULT_CATEGORY;
+                    if (!backlogCategorySummary[category]) {
+                        backlogCategorySummary[category] = { count: 0, totalMinutes: 0 };
+                        backlogTasksGroupedByCategory[category] = [];
+                    }
+                    backlogCategorySummary[category].count++;
+                    const minutes = parseDurationToMinutes(task.estimatedDuration);
+                    if (minutes > 0) { backlogCategorySummary[category].totalMinutes += minutes; }
+                    backlogTasksGroupedByCategory[category].push(task);
+                });
+
+                s += "--- RIEPILOGO CATEGORIE BACKLOG ---\n";
+                const categoryKeys = Object.keys(backlogCategorySummary).sort();
+                if (categoryKeys.length > 0) {
+                    categoryKeys.forEach(category => {
+                        const summary = backlogCategorySummary[category];
+                        s += `- ${category}: ${summary.count} attività, Totale Stimato: ${formatMinutesToDuration(summary.totalMinutes)}\n`;
+                    });
+                } else { s += "(Nessuna attività nel backlog)\n"; }
+                s += "-----------------------------------\n\n";
+
+                s += "--- ATTIVITÀ NEL BACKLOG (per Categoria) ---\n";
+                if (categoryKeys.length > 0) {
+                    categoryKeys.forEach(category => {
+                        const groupTasks = backlogTasksGroupedByCategory[category];
+                        const summary = backlogCategorySummary[category];
+                        s += `\n--- Categoria: ${category} (${summary.count} attività, Tot. St: ${formatMinutesToDuration(summary.totalMinutes)}) ---\n`;
+                        groupTasks.forEach(t => {
+                            s += `Nome:           ${t.name}\n`;
+                            s += `Priorità:       ${t.priority || 'N/A'}\n`;
+                            s += `Origine:        ${t.source || 'N/A'}\n`;
+                            s += `Durata Stimata: ${t.estimatedDuration || 'N/A'}\n`;
+                            s += `Durata Effett.: ${t.actualDuration || 'N/A'}\n`;
+                            s += `Tempo Trascorso: In Corso (${calculateElapsedTime(t.addedDate)})\n`;
+                            s += `Aggiunta:       ${formatDate(t.addedDate)}\n`;
+                            s += `ID:             ${t.id}\n\n`;
+                        });
+                    });
+                } else { s += "(Nessuna attività nel backlog)\n\n"; }
+
+                s += "--- ATTIVITÀ COMPLETATE ---\n";
+                const sortedCompleted = [...currentCompletedTasks].sort((a, b) => new Date(b.completedDate) - new Date(a.completedDate));
+                if (sortedCompleted.length > 0) {
+                    sortedCompleted.forEach(t => {
+                        s += `\nNome:           ${t.name}\n`;
+                        s += `Priorità:       ${t.priority || 'N/A'}\n`;
+                        s += `Categoria:      ${t.category || 'N/A'}\n`;
+                        s += `Origine:        ${t.source || 'N/A'}\n`;
+                        s += `Durata Stimata: ${t.estimatedDuration || 'N/A'}\n`;
+                        s += `Durata Effett.: ${t.actualDuration || 'N/A'}\n`;
+                        s += `Tempo Trascorso: ${t.elapsedDuration || 'N/A'}\n`;
+                        s += `Aggiunta:       ${formatDate(t.addedDate)}\n`;
+                        s += `Completata:     ${formatDate(t.completedDate)}\n`;
+                        s += `ID:             ${t.id}\n`;
+                    });
+                    s += "\n";
+                } else { s += "(Nessuna attività completata)\n"; }
+
+                s += "\n=====================\n";
+                return s;
+            };
+
+            const generateCsvContent=(tasks)=>{const h=["Status","Nome","Priorità","Categoria","Origine","Durata Stimata","Durata Effettiva","Tempo Trascorso","Data Aggiunta (ISO)","Data Completamento (ISO)","ID Task"];const hR=h.map(escapeCsvField).join(',');const dR=tasks.map(t=>{const eTV=(t.status==='Completato')?(t.elapsedDuration||''):'In Corso';const r=[t.status,t.name,t.priority,t.category,t.source,t.estimatedDuration,t.actualDuration,eTV,formatDate(t.addedDate,true),t.status==='Completato'?formatDate(t.completedDate,true):'',t.id];return r.map(escapeCsvField).join(',');});return[hR,...dR].join('\n');};
+            const exportSummary=()=>{const sC=generateSummaryText(); if(sC.includes("(Nessuna attività")){alert("Nessuna attività da esportare.");return;}const f=`riepilogo_attivita_${new Date().toISOString().slice(0,10)}.txt`;downloadFile(sC,f,'text/plain;charset=utf-8');};
+            const exportCsv=()=>{const aT=getAllTaskData();if(aT.length===0){alert("Nessuna attività da esportare.");return;}const cC=generateCsvContent(aT);const f=`export_attivita_${new Date().toISOString().slice(0,10)}.csv`;const BOM="\uFEFF";downloadFile(BOM+cC,f,'text/csv;charset=utf-8');};
+            const copySummary=()=>{const sC=generateSummaryText(); if(sC.includes("(Nessuna attività")){alert("Nessuna attività da copiare.");return;}copyToClipboard(sC);};
+            const copyCsv=()=>{const aT=getAllTaskData();if(aT.length===0){alert("Nessuna attività da copiare.");return;}const cC=generateCsvContent(aT);copyToClipboard(cC);};
+
+            // --- Event Listeners ---
+            backlogList.addEventListener('click', (e) => {
+                const target = e.target;
+                const taskLi = target.closest('li.task-item[data-id]');
+                if (!taskLi) return;
+                const taskId = taskLi.getAttribute('data-id');
+                if (target.classList.contains('edit-duration-btn') || target.closest('.edit-duration-btn')) {
+                    const area = taskLi.querySelector('.actual-duration-area');
+                    if (area) { area.classList.toggle('visible'); if (area.classList.contains('visible')) { area.querySelector('.actual-duration-input').focus(); } }
+                } else if (target.classList.contains('save-duration-btn') || target.closest('.save-duration-btn')) {
+                    const input = taskLi.querySelector('.actual-duration-input');
+                    if (input) { saveActualDuration(taskId, input.value); }
+                } else if (target.classList.contains('complete-btn') || target.closest('.complete-btn')) {
+                    completeTask(taskId);
+                } else if (target.classList.contains('delete-btn') || target.closest('.delete-btn')) {
+                    deleteTask(taskId, true);
+                }
+            });
+            completedListBody.addEventListener('click', (e) => {
+                const target = e.target;
+                if (target.classList.contains('delete-btn') || target.closest('.delete-btn')) {
+                    const row = target.closest('tr[data-id]');
+                    if (row) { const taskId = row.getAttribute('data-id'); deleteTask(taskId, false); }
+                }
+            });
+            addTaskButton.addEventListener('click', () => { addTask(newTaskInput.value, newTaskCategory.value, newTaskDuration.value, newTaskPriority.value, 'Manuale'); });
+            newTaskInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); addTask(newTaskInput.value, newTaskCategory.value, newTaskDuration.value, newTaskPriority.value, 'Manuale'); } });
+            newTaskDuration.addEventListener('keypress', (e) => { if (e.key === 'Enter') { e.preventDefault(); addTask(newTaskInput.value, newTaskCategory.value, newTaskDuration.value, newTaskPriority.value, 'Manuale'); } });
+            toggleCompletedButton.addEventListener('click', toggleCompleted);
+            toggleDbButton.addEventListener('click', toggleDbSection);
+            exportSummaryButton.addEventListener('click', exportSummary);
+            exportCsvButton.addEventListener('click', exportCsv);
+            copySummaryButton.addEventListener('click', copySummary);
+            copyCsvButton.addEventListener('click', copyCsv);
+
+            // --- Inizializzazione ---
+            renderLists();
+            if (!isDbTableVisible) { templateTable.style.display = 'none'; toggleDbButton.textContent = 'Mostra DB'; toggleDbButton.title = "Mostra DB Attività"; }
+            else { toggleDbButton.textContent = 'Nascondi DB'; toggleDbButton.title = "Nascondi DB Attività"; }
+        });
+    </script>
+
+</body>
+</html>
