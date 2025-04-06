@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestione Attività Dettagliata v5 - Timer & Notes</title>
+    <style>
+        /* --- General Styles --- */
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol"; line-height: 1.6; margin: 0; padding: 20px; background-color: #f4f7f9; color: #333; }
+        h1, h2 { color: #3a5f8a; margin-bottom: 15px; border-bottom: 1px solid #dce4ec; padding-bottom: 5px; display: flex; justify-content: space-between; align-items: center; }
+        .container { display: flex; flex-wrap: wrap; gap: 25px; max-width: 1400px; /* Slightly wider */ margin: 20px auto; }
+        .categories { flex: 1; min-width: 180px; background: #e9edf1; padding: 15px; border-radius: 8px; height: fit-content; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .categories h2 { font-size: 1.1em; color: #4a6a8a; margin-bottom: 10px; }
+        .categories ul { list-style: none; padding: 0; }
+        .categories li { background-color: #ffffff; margin-bottom: 8px; padding: 8px 12px; border: 1px solid #d8dfe5; border-radius: 4px; font-size: 0.9em; cursor: default; }
+        .notes { margin-top: 20px; font-size: 0.85em; color: #556a80; border-top: 1px solid #d8dfe5; padding-top: 10px; }
+        .notes ol { padding-left: 20px; margin-top: 5px; }
+        .app { flex: 3; min-width: 300px; display: flex; flex-direction: column; gap: 25px; }
+        .card { background-color: #fff; padding: 20px 25px; border: 1px solid #dce4ec; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.07); }
+
+        /* --- Form Styling --- */
+        .add-task-section label { display: block; margin-bottom: 5px; font-weight: 500; font-size: 0.9em; color: #555; }
+        .add-task-section input[type="text"],
+        .add-task-section select,
+        .add-task-section textarea { /* Added textarea */
+            width: 100%;
+            padding: 10px 12px;
+            margin-bottom: 15px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+            font-size: 0.95em;
+            font-family: inherit; /* Ensure textarea uses same font */
+        }
+         .add-task-section textarea {
+             min-height: 60px; /* Give notes some space */
+             resize: vertical; /* Allow vertical resize */
+         }
+
+        .form-row { display: flex; gap: 15px; margin-bottom: 15px; }
+        .form-row > div { flex: 1; }
+        .form-row label, .form-row input, .form-row select { margin-bottom: 0; width: 100%; }
+
+        /* --- Button Styling --- */
+        #add-task-button { /* Larger Add Button */
+            padding: 12px 25px;
+            font-size: 1.05em;
+            font-weight: bold;
+        }
+        .add-task-section button, .templates-section button.add-from-template-button, #toggle-completed-button, .export-section button { background-color: #4a90e2; color: white; border: none; border-radius: 5px; cursor: pointer; font-weight: 500; transition: background-color 0.2s ease-in-out; margin-right: 10px; margin-bottom: 10px; } /* Removed size defaults here */
+        .add-task-section button:not(#add-task-button), /* Style other potential buttons normally */
+        .templates-section button.add-from-template-button,
+        #toggle-completed-button,
+        .export-section button {
+             padding: 10px 18px;
+             font-size: 0.95em;
+        }
+        .add-task-section button:hover, .templates-section button.add-from-template-button:hover, #toggle-completed-button:hover, .export-section button:hover { background-color: #357abd; }
+        .export-section button { background-color: #607d8b; } .export-section button:hover { background-color: #455a64; }
+        .export-section button.copy-btn { background-color: #7cb342; } .export-section button.copy-btn:hover { background-color: #558b2f; }
+        #toggle-db-button { font-size: 0.7em; padding: 4px 8px; background-color: #90a4ae; font-weight: normal; margin-left: auto; margin-right: 0; } #toggle-db-button:hover { background-color: #78909c; }
+
+        /* --- Backlog Task List --- */
+        #backlog-list { list-style: none; padding: 0; margin-top: 15px; }
+        #backlog-list li { background-color: #fcfcfd; padding: 10px 15px; margin-bottom: 10px; border: 1px solid #e8eef3; border-left: 4px solid #4a90e2; border-radius: 4px; display: flex; justify-content: space-between; align-items: flex-start; transition: box-shadow 0.15s ease-in-out; flex-wrap: wrap; }
+        #backlog-list li:hover { box-shadow: 0 2px 4px rgba(0,0,0,0.08); }
+
+        /* Backlog Item Content/Details */
+        .item-content { flex-grow: 1; margin-right: 15px; display: flex; flex-direction: column; gap: 4px; min-width: 200px; }
+        .item-name { font-weight: 500; color: #334e68; }
+        .item-details { font-size: 0.8em; color: #627d98; display: flex; flex-wrap: wrap; gap: 5px 10px; }
+        .item-details span { background-color: #e0e8f0; padding: 2px 6px; border-radius: 10px; white-space: nowrap; }
+        .item-details .detail-category { background-color: #d4e6f1; color: #2e618d; }
+        .item-details .detail-priority-Bassa { background-color: #d5f5e3; color: #186a3b; }
+        .item-details .detail-priority-Normale { background-color: #fdebd0; color: #b9770e; }
+        .item-details .detail-priority-Alta { background-color: #fadbd8; color: #943126; }
+        .item-details .detail-source { background-color: #e8eaf6; color: #3f51b5; }
+        .item-details .detail-date { background-color: #f5f5f5; color: #757575; }
+        .item-details .detail-duration-est { background-color: #fff9c4; color: #f57f17; }
+        .item-details .detail-duration-act { background-color: #dcedc8; color: #33691e; }
+        .item-notes { /* Style for notes in backlog */
+            font-size: 0.85em;
+            color: #546e7a;
+            margin-top: 5px;
+            padding-top: 5px;
+            border-top: 1px dotted #cfd8dc;
+            white-space: pre-wrap; /* Respect line breaks in notes */
+            width: 100%; /* Take full width below details */
+        }
+        .task-timer { /* Style for the timer span */
+            font-weight: bold;
+            color: #ef6c00; /* Orange timer */
+            background-color: #fff3e0;
+            padding: 2px 6px;
+            border-radius: 4px;
+            margin-left: 10px; /* Space it from details */
+            font-size: 0.85em;
+        }
+
+
+        /* --- Completed Tasks Table --- */
+        #completed-tasks-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+            font-size: 0.9em; /* Make table text slightly smaller */
+        }
+        #completed-tasks-table th, #completed-tasks-table td {
+            border: 1px solid #dce4ec;
+            padding: 6px 8px; /* Adjust padding */
+            text-align: left;
+            vertical-align: top; /* Align content top */
+        }
+        #completed-tasks-table th {
+            background-color: #e9edf1;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+        #completed-tasks-table tbody tr {
+            background-color: #f8f9fa;
+            color: #5a6a7a; /* Slightly muted text */
+        }
+        #completed-tasks-table tbody tr:nth-child(even) {
+            background-color: #fdfdfe;
+        }
+        #completed-tasks-table .col-name { min-width: 150px; }
+        #completed-tasks-table .col-notes { min-width: 180px; white-space: pre-wrap; }
+        #completed-tasks-table .col-actions { width: 50px; text-align: center; }
+        #completed-tasks-table .col-numeric { text-align: right; white-space: nowrap; } /* For durations/dates */
+        #completed-tasks-table .col-small { white-space: nowrap; }
+
+        /* Hide original completed list */
+        #completed-list { display: none; }
+
+
+        /* Action Buttons */
+        .item-actions { display: flex; gap: 6px; flex-shrink: 0; align-items: center; margin-left: auto; padding-top: 2px; }
+        .item-actions button { padding: 4px 8px; cursor: pointer; border-radius: 4px; border: 1px solid transparent; font-size: 0.9em; line-height: 1; transition: background-color 0.2s, border-color 0.2s; margin-bottom: 0; margin-right: 0;} /* Reset margins */
+        .table-actions button { font-size: 1.1em; /* Make table buttons slightly bigger */ padding: 2px 5px;}
+        .complete-btn { background-color: #e8f5e9; color: #388e3c; border: 1px solid #c8e6c9; } .complete-btn:hover { background-color: #c8e6c9; }
+        .delete-btn { background-color: #ffebee; color: #c62828; border: 1px solid #ffcdd2; } .delete-btn:hover { background-color: #ffcdd2; }
+        .add-from-template-button { background-color: #e3f2fd; color: #1e88e5; border: 1px solid #bbdefb; } .add-from-template-button:hover { background-color: #bbdefb; }
+        .edit-duration-btn { background-color: #e0e0e0; color: #424242; border: 1px solid #bdbdbd; } .edit-duration-btn:hover { background-color: #bdbdbd; }
+        .save-duration-btn { background-color: #c8e6c9; color: #388e3c; border: 1px solid #a5d6a7; margin-left: 5px; } .save-duration-btn:hover { background-color: #a5d6a7; }
+
+        /* Actual Duration Area */
+        .actual-duration-area { display: none; width: 100%; margin-top: 8px; padding-top: 8px; border-top: 1px dashed #eee; display: flex; align-items: center; gap: 8px; }
+        .actual-duration-area.visible { display: flex; }
+        .actual-duration-area label { font-size: 0.8em; color: #555; margin-bottom: 0; }
+        .actual-duration-input { flex-grow: 1; padding: 4px 8px; border: 1px solid #ccc; border-radius: 4px; font-size: 0.9em; }
+
+        /* Completed Section */
+        #completed-tasks-container { margin-top: 15px; border-top: 1px solid #e8eef3; padding-top: 15px; }
+
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <!-- Colonna Sinistra -->
+        <aside class="categories">
+            <h2>Categorie/Contesti</h2><ul><li>T1</li><li>T2</li><li>T3</li><li>Lavoro</li><li>Altro</li><li>Svago</li><li>Viaggi</li><li>Casa</li><li>Personale</li></ul>
+            <div class="notes"><p><strong>Fasi:</strong></p><ol><li>Aggiunta</li><li>Backlog</li><li>Completamento</li></ol><p><strong>Nota:</strong> Tempo trascorso mostrato nel backlog.</p></div>
+        </aside>
+
+        <!-- Colonna Destra -->
+        <main class="app">
+            <!-- Aggiunta Nuova Attività -->
+            <section class="add-task-section card">
+                <h2>Nuova Attività Manuale</h2>
+                <div><label for="new-task-input">Nome attività:</label><input type="text" id="new-task-input" placeholder="Es: Comprare il latte"></div>
+                <div class="form-row"><div><label for="new-task-category">Categoria:</label><select id="new-task-category">...</select></div><div><label for="new-task-priority">Priorità:</label><select id="new-task-priority">...</select></div></div>
+                <div><label for="new-task-duration">Durata Stimata:</label><input type="text" id="new-task-duration" placeholder="Es: 30 min, 1 ora, 2 giorni"></div>
+                <div><label for="new-task-notes">Note Aggiuntive:</label><textarea id="new-task-notes" placeholder="Dettagli, link, ecc..."></textarea></div> {/* Added Notes Input */}
+                <button id="add-task-button">Aggiungi al Backlog</button>
+            </section>
+
+            <!-- Template (DB Attività) -->
+            <section class="templates-section card" id="templates-section"><h2><span>Aggiungi da Template</span><button id="toggle-db-button" title="Nascondi DB">Nascondi DB</button></h2><ul id="template-list">...</ul></section>
+
+            <!-- Backlog -->
+            <section class="backlog-section card"><h2>Backlog Attività (Ord: Priorità, Data ↓)</h2><ul id="backlog-list">...</ul></section>
+
+            <!-- Concluse -->
+            <section class="completed-section card">
+                <button id="toggle-completed-button">Mostra Concluse (0)</button>
+                <div id="completed-tasks-container" style="display: none;">
+                    <h2>Attività Concluse</h2>
+                    {/* Replaced UL with Table */}
+                    <table id="completed-tasks-table">
+                        <thead>
+                            <tr>
+                                <th class="col-name">Nome</th>
+                                <th class="col-small">Cat.</th>
+                                <th class="col-small">Pri.</th>
+                                <th class="col-notes">Note</th>
+                                <th class="col-numeric">Stima</th>
+                                <th class="col-numeric">Effettiva</th>
+                                <th class="col-numeric">Tempo Tot.</th> {/* Added Elapsed Time Header */}
+                                <th class="col-numeric">Aggiunta</th>
+                                <th class="col-numeric">Completata</th>
+                                <th class="col-actions">Azioni</th>
+                            </tr>
+                        </thead>
+                        <tbody id="completed-tasks-tbody">
+                            {/* Rows will be added here */}
+                        </tbody>
+                    </table>
+                    <ul id="completed-list"></ul> {/* Keep original UL hidden for compatibility if needed, but target tbody */}
+                </div>
+            </section>
+
+            <!-- Export / Copy -->
+            <section class="export-section card"><h2>Esporta / Copia Dati</h2><button id="export-summary-button">Esporta Riepilogo (.txt)</button><button id="export-csv-button">Esporta CSV (.csv)</button><button id="copy-summary-button" class="copy-btn">Copia Riepilogo</button><button id="copy-csv-button" class="copy-btn">Copia CSV</button></section>
+        </main>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- Riferimenti DOM ---
+            const newTaskInput = document.getElementById('new-task-input');
+            const newTaskCategory = document.getElementById('new-task-category');
+            const newTaskPriority = document.getElementById('new-task-priority');
+            const newTaskDuration = document.getElementById('new-task-duration');
+            const newTaskNotes = document.getElementById('new-task-notes'); // New
+            const addTaskButton = document.getElementById('add-task-button');
+            const backlogList = document.getElementById('backlog-list');
+            // const completedList = document.getElementById('completed-list'); // We use tbody now
+            const completedTasksTbody = document.getElementById('completed-tasks-tbody'); // New target
+            const toggleCompletedButton = document.getElementById('toggle-completed-button');
+            const completedTasksContainer = document.getElementById('completed-tasks-container');
+            const templateList = document.getElementById('template-list');
+            const toggleDbButton = document.getElementById('toggle-db-button');
+            const exportSummaryButton = document.getElementById('export-summary-button');
+            const exportCsvButton = document.getElementById('export-csv-button');
+            const copySummaryButton = document.getElementById('copy-summary-button');
+            const copyCsvButton = document.getElementById('copy-csv-button');
+
+            // --- Stato Applicazione ---
+            let backlogTasks = JSON.parse(localStorage.getItem('backlogTasks_v6')) || []; // Version bump
+            let completedTasks = JSON.parse(localStorage.getItem('completedTasks_v6')) || [];
+            let isDbListVisible = templateList.style.display !== 'none';
+            let timerIntervalId = null; // To store the interval ID
+
+            // --- TEMPLATES & Config ---
+            const activityTemplates = [/* ... same ... */];
+            const priorityOrder = { 'Alta': 1, 'Normale': 2, 'Bassa': 3 };
+
+            // --- Funzioni Core (save, add, complete, delete, etc.) ---
+            const saveTasks = () => { localStorage.setItem('backlogTasks_v6', JSON.stringify(backlogTasks)); localStorage.setItem('completedTasks_v6', JSON.stringify(completedTasks)); };
+            const formatDate = (ds, useISO=false, includeTime=true) => {if(!ds)return'';try{const d=new Date(ds);if(useISO)return d.toISOString();const options={day:'numeric',month:'short',year:'numeric'};if(includeTime){options.hour='2-digit';options.minute='2-digit';}return d.toLocaleString('it-IT',options)}catch(e){return'Data invalida'}};
+
+            // --- Timer Calculation & Formatting ---
+            const calculateElapsedTime = (addedDateString) => {
+                const addedDate = new Date(addedDateString);
+                const now = new Date();
+                const diffMs = now - addedDate;
+                const diffSeconds = Math.floor(diffMs / 1000);
+                const diffMinutes = Math.floor(diffSeconds / 60);
+                const diffHours = Math.floor(diffMinutes / 60);
+                const diffDays = Math.floor(diffHours / 24);
+
+                const todayStart = new Date();
+                todayStart.setHours(0, 0, 0, 0);
+
+                if (addedDate >= todayStart) {
+                    // Added today: format HH:MM
+                    const hoursToday = diffHours;
+                    const minutesToday = diffMinutes % 60;
+                    return `${String(hoursToday).padStart(2, '0')}:${String(minutesToday).padStart(2, '0')}`;
+                } else {
+                    // Added before today: format X giorni
+                    // Ensure at least 1 day if added yesterday even if < 24h ago
+                     const days = Math.max(1, diffDays); // Show at least 1 day if not today
+                    return `${days} giorn${days === 1 ? 'o' : 'i'}`;
+                }
+            };
+             // Format final elapsed time (potentially more precise)
+            const formatFinalElapsedTime = (ms) => {
+                 if (ms === null || ms === undefined) return 'N/A';
+                 const seconds = Math.floor(ms / 1000);
+                 const days = Math.floor(seconds / (3600 * 24));
+                 const hours = Math.floor((seconds % (3600 * 24)) / 3600);
+                 const minutes = Math.floor((seconds % 3600) / 60);
+                 // const secs = seconds % 60; // Optional: include seconds
+
+                 let result = '';
+                 if (days > 0) result += `${days}g `;
+                 result += `${String(hours).padStart(2,'0')}:${String(minutes).padStart(2,'0')}`;
+                 // result += `:${String(secs).padStart(2,'0')}`; // Optional seconds
+
+                 return result.trim();
+            };
+
+
+            // --- Element Creation ---
+            const createTaskElement = (task, isBacklog=true)=>{
+                if (isBacklog) {
+                    // --- BACKLOG: Create LI element ---
+                    const li=document.createElement('li');li.setAttribute('data-id',task.id);
+                    switch(task.priority){case'Alta':li.style.borderLeftColor='#e57373';break;case'Bassa':li.style.borderLeftColor='#a5d6a7';break;default:li.style.borderLeftColor='#90caf9';break;}
+                    const contentDiv=document.createElement('div');contentDiv.classList.add('item-content');
+                    const nameSpan=document.createElement('span');nameSpan.classList.add('item-name');nameSpan.textContent=task.name;
+                    // Add Timer Span Here
+                    const timerSpan = document.createElement('span');
+                    timerSpan.classList.add('task-timer');
+                    timerSpan.setAttribute('data-added-date', task.addedDate); // Store date for updates
+                    timerSpan.textContent = '...'; // Initial text
+                    nameSpan.appendChild(timerSpan); // Append timer next to name
+                    contentDiv.appendChild(nameSpan);
+
+                    const detailsDiv=document.createElement('div');detailsDiv.classList.add('item-details');detailsDiv.innerHTML=`<span class="detail-category">Cat: ${task.category||'N/A'}</span> <span class="detail-priority-${task.priority||'Normale'}">Pri: ${task.priority||'N/A'}</span> ${task.estimatedDuration?`<span class="detail-duration-est" title="Durata Stimata">St: ${task.estimatedDuration}</span>`:''} ${task.actualDuration?`<span class="detail-duration-act" title="Durata Effettiva">Ef: ${task.actualDuration}</span>`:''} ${task.source?`<span class="detail-source">Orig: ${task.source}</span>`:''} <span class="detail-date" title="Data Aggiunta">Agg: ${formatDate(task.addedDate, false, false)}</span>`; // Hide time for backlog date
+                    contentDiv.appendChild(detailsDiv);
+                    // Add Notes Display
+                    if (task.notes) {
+                        const notesDiv = document.createElement('div');
+                        notesDiv.classList.add('item-notes');
+                        notesDiv.textContent = task.notes;
+                        contentDiv.appendChild(notesDiv);
+                    }
+                    li.appendChild(contentDiv);
+                    const actionsDiv=document.createElement('div');actionsDiv.classList.add('item-actions');const editDurationBtn=document.createElement('button');editDurationBtn.textContent='⏱️';editDurationBtn.classList.add('edit-duration-btn');editDurationBtn.title="Modifica/Aggiungi Durata Effettiva";actionsDiv.appendChild(editDurationBtn);const completeBtn=document.createElement('button');completeBtn.textContent='✓';completeBtn.classList.add('complete-btn');completeBtn.title="Marca come completata";actionsDiv.appendChild(completeBtn);const deleteBtn=document.createElement('button');deleteBtn.textContent='✗';deleteBtn.classList.add('delete-btn');deleteBtn.title="Elimina task";actionsDiv.appendChild(deleteBtn);li.appendChild(actionsDiv);const durationArea=document.createElement('div');durationArea.classList.add('actual-duration-area');const durationLabel=document.createElement('label');durationLabel.textContent="Dur. Effettiva:";durationLabel.htmlFor=`duration-input-${task.id}`;const durationInput=document.createElement('input');durationInput.type='text';durationInput.id=`duration-input-${task.id}`;durationInput.classList.add('actual-duration-input');durationInput.placeholder="Es: 45 min, 1h 10m...";durationInput.value=task.actualDuration||'';const saveDurationBtn=document.createElement('button');saveDurationBtn.textContent='💾';saveDurationBtn.classList.add('save-duration-btn');saveDurationBtn.title="Salva Durata Effettiva";durationArea.appendChild(durationLabel);durationArea.appendChild(durationInput);durationArea.appendChild(saveDurationBtn);li.appendChild(durationArea);
+                    return li;
+                } else {
+                    // --- COMPLETED: Create TR element ---
+                    const tr = document.createElement('tr');
+                    tr.setAttribute('data-id', task.id);
+
+                    // Helper to create TD
+                    const createTd = (content, className = '', title = '') => {
+                        const td = document.createElement('td');
+                        td.innerHTML = content; // Use innerHTML for potential simple tags if needed later
+                        if (className) td.className = className;
+                        if (title) td.title = title;
+                        return td;
+                    };
+
+                    tr.appendChild(createTd(task.name, 'col-name'));
+                    tr.appendChild(createTd(task.category || '-', 'col-small'));
+                    tr.appendChild(createTd(task.priority || '-', 'col-small'));
+                    tr.appendChild(createTd(task.notes || '-', 'col-notes', task.notes || 'Nessuna nota')); // Show full notes on hover
+                    tr.appendChild(createTd(task.estimatedDuration || '-', 'col-numeric', 'Durata Stimata'));
+                    tr.appendChild(createTd(task.actualDuration || '-', 'col-numeric', 'Durata Effettiva'));
+                    tr.appendChild(createTd(task.elapsedTimeAtCompletion || '-', 'col-numeric', 'Tempo Trascorso Prima del Completamento')); // Display elapsed time
+                    tr.appendChild(createTd(formatDate(task.addedDate), 'col-numeric', 'Data Aggiunta'));
+                    tr.appendChild(createTd(formatDate(task.completedDate), 'col-numeric', 'Data Completamento'));
+
+                    // Actions TD
+                    const actionsTd = document.createElement('td');
+                    actionsTd.className = 'col-actions table-actions'; // Center actions
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.textContent = '✗';
+                    deleteBtn.classList.add('delete-btn');
+                    deleteBtn.title = "Elimina task completata";
+                    // Listener will be delegated
+                    actionsTd.appendChild(deleteBtn);
+                    tr.appendChild(actionsTd);
+
+                    return tr;
+                }
+             };
+            const createTemplateElement = (template)=>{ /* ...unchanged... */ const li=document.createElement('li');li.setAttribute('data-template-id',template.id);li.style.borderLeftColor='#ffab40';const contentDiv=document.createElement('div');contentDiv.classList.add('item-content');const nameSpan=document.createElement('span');nameSpan.classList.add('item-name');nameSpan.textContent=template.name;contentDiv.appendChild(nameSpan);const detailsDiv=document.createElement('div');detailsDiv.classList.add('item-details');detailsDiv.innerHTML=`<span class="detail-category">Cat: ${template.category||'N/A'}</span> <span class="detail-priority-${template.priority||'Normale'}">Pri: ${template.priority||'N/A'}</span> ${template.estimatedDuration?`<span class="detail-duration-est">St: ${template.estimatedDuration}</span>`:''}`;contentDiv.appendChild(detailsDiv);li.appendChild(contentDiv);const actionsDiv=document.createElement('div');actionsDiv.classList.add('item-actions');const addBtn=document.createElement('button');addBtn.textContent='+';addBtn.classList.add('add-from-template-button');addBtn.title=`Aggiungi "${template.name}" al backlog`;addBtn.onclick=(e)=>{e.stopPropagation();addTask(template.name,template.category,template.estimatedDuration,template.priority,'Template', null);};actionsDiv.appendChild(addBtn);li.appendChild(actionsDiv);return li; }; // Note: Add 'null' for notes in template add
+
+            // --- RENDER LISTS ---
+            const renderLists = () => {
+                backlogList.innerHTML = '';
+                completedTasksTbody.innerHTML = ''; // Target tbody now
+                templateList.innerHTML = '';
+                let backlogEmpty = true;
+                let completedEmpty = true;
+
+                // Render Backlog (Sorted) & Start Timers
+                const sortedBacklog = [...backlogTasks].sort((a, b) => { const pC=(priorityOrder[a.priority]||99)-(priorityOrder[b.priority]||99);if(pC!==0){return pC;}return new Date(b.addedDate)-new Date(a.addedDate);});
+                sortedBacklog.forEach(task => { backlogList.appendChild(createTaskElement(task, true)); backlogEmpty = false; });
+
+                // Render Completed (Sorted by Completion Date Desc) into Table
+                [...completedTasks].sort((a, b) => new Date(b.completedDate) - new Date(a.completedDate)).forEach(task => {
+                     completedTasksTbody.appendChild(createTaskElement(task, false)); // Creates TR
+                     completedEmpty = false;
+                });
+
+                // Render Templates
+                activityTemplates.forEach(template => { templateList.appendChild(createTemplateElement(template)); }); if(activityTemplates.length === 0) templateList.innerHTML = '<li>Nessun template disponibile.</li>';
+
+                 // Placeholders
+                if(backlogEmpty) backlogList.innerHTML = '<li>Nessuna attività nel backlog.</li>';
+                if(completedEmpty) completedTasksTbody.innerHTML = '<tr><td colspan="10" style="text-align:center; padding: 10px; color: #777;">Nessuna attività completata.</td></tr>'; // Placeholder row
+
+                // Toggle Button Update
+                const completedCount = completedTasks.length; toggleCompletedButton.textContent = completedTasksContainer.style.display==='none'?`Mostra Concluse (${completedCount})`:`Nascondi Concluse (${completedCount})`;
+
+                // Update timers immediately after rendering
+                updateAllTimers();
+            };
+
+            // --- Timer Update Function ---
+            const updateAllTimers = () => {
+                const timerElements = backlogList.querySelectorAll('.task-timer[data-added-date]');
+                timerElements.forEach(timerSpan => {
+                    const addedDate = timerSpan.getAttribute('data-added-date');
+                    if (addedDate) {
+                        timerSpan.textContent = calculateElapsedTime(addedDate);
+                    }
+                });
+            };
+
+             // --- START/STOP Timer Interval ---
+             const startTimerUpdates = () => {
+                 if (timerIntervalId) clearInterval(timerIntervalId); // Clear existing if any
+                 updateAllTimers(); // Initial update
+                 timerIntervalId = setInterval(updateAllTimers, 60000); // Update every minute
+             };
+            const stopTimerUpdates = () => {
+                 if (timerIntervalId) clearInterval(timerIntervalId);
+                 timerIntervalId = null;
+             };
+
+            // --- Add Task (Includes Notes) ---
+            const addTask = (name, category, duration, priority, source = 'Manuale', notes) => {
+                const taskName = name.trim(); if (!taskName) { alert("Nome attività vuoto!"); newTaskInput.focus(); return; }
+                const newTask = { id:`task-${Date.now()}-${Math.random().toString(16).slice(2)}`, name:taskName, category:category, priority:priority, estimatedDuration:duration.trim()||null, actualDuration:null, notes: notes ? notes.trim() : null, // Add notes
+                addedDate:new Date().toISOString(), isComplete:false, completedDate:null, source:source, elapsedTimeAtCompletion: null }; // Add field for final time
+                backlogTasks.push(newTask); saveTasks(); renderLists(); startTimerUpdates(); // Make sure timers update after adding
+                if (source==='Manuale') { newTaskInput.value='';newTaskCategory.value='Generale';newTaskPriority.value='Normale';newTaskDuration.value=''; newTaskNotes.value=''; newTaskInput.focus(); }
+             };
+
+            // --- Complete Task (Captures Final Elapsed Time) ---
+            const completeTask = (taskId) => {
+                 const taskIndex = backlogTasks.findIndex(t=>t.id===taskId);
+                 if (taskIndex > -1) {
+                     const task = backlogTasks[taskIndex]; // Get task *before* removing
+
+                     // Calculate and store final elapsed time
+                     const completionTime = new Date(); // Use current time for accuracy
+                     const addedTime = new Date(task.addedDate);
+                     const elapsedMs = completionTime - addedTime;
+                     task.elapsedTimeAtCompletion = formatFinalElapsedTime(elapsedMs); // Store formatted string
+
+                     task.isComplete = true;
+                     task.completedDate = completionTime.toISOString(); // Use the same completion time
+
+                     backlogTasks.splice(taskIndex, 1); // Now remove from backlog
+                     completedTasks.push(task); // Add to completed
+                     saveTasks();
+                     renderLists(); // Re-render both lists
+                      startTimerUpdates(); // Ensure timers are running correctly for remaining tasks
+                 } else { console.warn("Task non trovata:", taskId); }
+             };
+
+            // --- Other Core Functions (saveDuration, delete, toggleCompleted - unchanged logic) ---
+            const saveActualDuration = (id,dV)=>{const tI=backlogTasks.findIndex(t=>t.id===id);if(tI>-1){backlogTasks[tI].actualDuration=dV.trim()||null;saveTasks();renderLists();}else{console.warn("Task non trovata:",id);}};
+            const deleteTask = (id,isB)=>{if(confirm("Eliminare attività?")){if(isB){backlogTasks=backlogTasks.filter(t=>t.id!==id);}else{completedTasks=completedTasks.filter(t=>t.id!==id);}saveTasks();renderLists();startTimerUpdates();} }; // Restart timer check after delete
+            const toggleCompleted = ()=>{const isH=completedTasksContainer.style.display==='none';completedTasksContainer.style.display=isH?'block':'none';renderLists();};
+            const toggleDbSection = ()=>{isDbListVisible=!isDbListVisible;if(isDbListVisible){templateList.style.display='';toggleDbButton.textContent='Nascondi DB';toggleDbButton.title="Nascondi DB Attività";}else{templateList.style.display='none';toggleDbButton.textContent='Mostra DB';toggleDbButton.title="Mostra DB Attività";}};
+
+            // --- Export/Copy Functions (Updated for new fields) ---
+            const getAllTaskData = () => { /* ...unchanged sorting logic... */const bS=backlogTasks.map(t=>({...t,status:'Backlog'}));const cS=completedTasks.map(t=>({...t,status:'Completato'}));return[...bS,...cS].sort((a,b)=>{if(a.status==='Backlog'&&b.status==='Completato')return -1;if(a.status==='Completato'&&b.status==='Backlog')return 1;if(a.status==='Backlog'){const pC=(priorityOrder[a.priority]||99)-(priorityOrder[b.priority]||99);if(pC!==0)return pC;return new Date(b.addedDate)-new Date(a.addedDate);}if(a.status==='Completato'){return new Date(b.completedDate)-new Date(a.completedDate);}return 0;}); };
+            const downloadFile = (c,f,mT)=>{const b=new Blob([c],{type:mT});const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download=f;document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(u);};
+            const generateSummaryText = (tasks) => { let s="RIEPILOGO ATTIVITÀ\n=====================\n\n";tasks.forEach(t=>{s+=`--- ${t.status.toUpperCase()} ---\nNome:      ${t.name}\nPriorità:  ${t.priority||'N/A'}\nCategoria: ${t.category||'N/A'}\nOrigine:   ${t.source||'N/A'}\nStimata:   ${t.estimatedDuration||'N/A'}\nEffettiva: ${t.actualDuration||'N/A'}\nNote:      ${t.notes||'N/A'}\nAggiunta:  ${formatDate(t.addedDate)}\n${t.status==='Completato'?`Complet.:  ${formatDate(t.completedDate)}\nTempoTot.: ${t.elapsedTimeAtCompletion||'N/A'}\n`:''}ID:        ${t.id}\n\n`;});s+="=====================\n";return s; }; // Added Notes, Elapsed Time
+            const escapeCsvField = (fV)=>{const sV=String(fV===null||fV===undefined?'':fV);if(sV.search(/("|,|\n)/g)>=0){return`"${sV.replace(/"/g,'""')}"`;}return sV;};
+            const generateCsvContent = (tasks) => { const h=["Status","Nome","Priorità","Categoria","Origine","Durata Stimata","Durata Effettiva", "Tempo Trascorso Finale", "Note", "Data Aggiunta (ISO)","Data Completamento (ISO)","ID Task"];const hR=h.map(escapeCsvField).join(',');const dR=tasks.map(t=>{const r=[t.status,t.name,t.priority,t.category,t.source,t.estimatedDuration,t.actualDuration, t.status === 'Completato' ? t.elapsedTimeAtCompletion : '', t.notes, formatDate(t.addedDate,true),t.status==='Completato'?formatDate(t.completedDate,true):'',t.id];return r.map(escapeCsvField).join(',');});return[hR,...dR].join('\n'); }; // Added Notes, Elapsed Time Header & Data
+            const exportSummary = ()=>{const aT=getAllTaskData();if(aT.length===0){alert("Nessuna attività.");return;}const sC=generateSummaryText(aT);const f=`riepilogo_attivita_${new Date().toISOString().slice(0,10)}.txt`;downloadFile(sC,f,'text/plain;charset=utf-8');};
+            const exportCsv = ()=>{const aT=getAllTaskData();if(aT.length===0){alert("Nessuna attività.");return;}const cC=generateCsvContent(aT);const f=`export_attivita_${new Date().toISOString().slice(0,10)}.csv`;const BOM="\uFEFF";downloadFile(BOM+cC,f,'text/csv;charset=utf-8');};
+            const copyToClipboard = async(t)=>{if(!navigator.clipboard){alert('Clipboard API non supportata.');return false;}try{await navigator.clipboard.writeText(t);alert('Testo copiato!');return true;}catch(err){console.error('Errore copia:',err);alert('Errore copia.');return false;}};
+            const copySummary = ()=>{const aT=getAllTaskData();if(aT.length===0){alert("Nessuna attività.");return;}const sC=generateSummaryText(aT);copyToClipboard(sC);};
+            const copyCsv = ()=>{const aT=getAllTaskData();if(aT.length===0){alert("Nessuna attività.");return;}const cC=generateCsvContent(aT);copyToClipboard(cC);};
+
+            // --- Event Listeners ---
+            // Lists (Delegation)
+            backlogList.addEventListener('click', (e)=>{const tgt=e.target;const li=tgt.closest('li[data-id]');if(!li)return;const id=li.getAttribute('data-id');if(tgt.classList.contains('edit-duration-btn')||tgt.closest('.edit-duration-btn')){const area=li.querySelector('.actual-duration-area');if(area){area.classList.toggle('visible');if(area.classList.contains('visible')){area.querySelector('.actual-duration-input').focus();}}}else if(tgt.classList.contains('save-duration-btn')||tgt.closest('.save-duration-btn')){const inp=li.querySelector('.actual-duration-input');if(inp){saveActualDuration(id,inp.value);}}else if(tgt.classList.contains('complete-btn')||tgt.closest('.complete-btn')){completeTask(id);}else if(tgt.classList.contains('delete-btn')||tgt.closest('.delete-btn')){deleteTask(id,true);}});
+             // Delegate clicks for completed table tbody
+            completedTasksTbody.addEventListener('click', (e)=>{ const tgt=e.target; const tr=tgt.closest('tr[data-id]'); if(!tr)return; const id=tr.getAttribute('data-id'); if(tgt.classList.contains('delete-btn')||tgt.closest('.delete-btn')){deleteTask(id,false);}});
+
+            // Standard Buttons
+            addTaskButton.addEventListener('click', ()=>{addTask(newTaskInput.value,newTaskCategory.value,newTaskDuration.value,newTaskPriority.value,'Manuale', newTaskNotes.value);}); // Pass notes value
+            newTaskInput.addEventListener('keypress', (e)=>{if(e.key==='Enter'){e.preventDefault();addTask(newTaskInput.value,newTaskCategory.value,newTaskDuration.value,newTaskPriority.value,'Manuale', newTaskNotes.value);}}); // Pass notes value
+            toggleCompletedButton.addEventListener('click', toggleCompleted);
+            toggleDbButton.addEventListener('click', toggleDbSection);
+            exportSummaryButton.addEventListener('click', exportSummary);
+            exportCsvButton.addEventListener('click', exportCsv);
+            copySummaryButton.addEventListener('click', copySummary);
+            copyCsvButton.addEventListener('click', copyCsv);
+
+            // --- Inizializzazione ---
+            renderLists(); // Initial render
+            startTimerUpdates(); // Start the timer updates
+            // Set initial DB toggle state
+            if (!isDbListVisible) { templateList.style.display = 'none'; toggleDbButton.textContent = 'Mostra DB'; toggleDbButton.title = "Mostra DB Attività"; } else { templateList.style.display = ''; toggleDbButton.textContent = 'Nascondi DB'; toggleDbButton.title = "Nascondi DB Attività"; }
+
+            // Optional: Clear interval on page unload (usually not strictly needed for simple apps)
+             // window.addEventListener('beforeunload', stopTimerUpdates);
+        });
+    </script>
+
+</body>
+</html>
